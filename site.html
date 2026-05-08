@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTA Boutique</title>
+    <style>
+        :root { --primary: #2980b9; --whatsapp: #25D366; --bg: #f0f4f8; }
+        * { box-sizing: border-box; }
+        body { font-family: sans-serif; margin: 0; background: var(--bg); padding-bottom: 120px; }
+
+        header {
+            background: white; padding: 10px 15px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            position: sticky; top: 0; z-index: 10; gap: 10px;
+        }
+        #header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        #boutique-logo { width:44px; height:44px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid var(--primary); display:none; }
+        #boutique-logo.visible { display:block; }
+        #boutique-nom { margin:0; font-size:18px; font-weight:bold; color:var(--primary); }
+        #panier-btn { background:var(--primary); color:white; border:none; border-radius:50px; padding:9px 14px; font-size:14px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px; flex-shrink:0; }
+        #panier-count { background:white; color:var(--primary); border-radius:50%; width:22px; height:22px; font-size:12px; font-weight:bold; display:flex; align-items:center; justify-content:center; }
+
+        #banniere { background:var(--primary); color:white; text-align:center; padding:10px 15px; font-size:14px; font-weight:bold; }
+
+        .container { max-width:500px; margin:0 auto; padding:15px; }
+        #search-bar { width:100%; padding:11px 15px; border:2px solid #ddd; border-radius:30px; font-size:15px; margin-bottom:14px; outline:none; transition:border-color 0.2s; }
+        #search-bar:focus { border-color:var(--primary); }
+        #categories-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+        .cat-btn { padding:7px 16px; border:2px solid #ddd; border-radius:30px; background:white; font-size:13px; font-weight:bold; cursor:pointer; color:#555; transition:all 0.2s; }
+        .cat-btn.active { background:var(--primary); color:white; border-color:var(--primary); }
+
+        .products-grid { display:flex; flex-direction:column; gap:20px; }
+        .card { background:white; border-radius:14px; overflow:hidden; box-shadow:0 3px 12px rgba(0,0,0,0.1); position:relative; }
+        .card.hidden { display:none; }
+        .badge-rupture { position:absolute; top:12px; left:12px; background:rgba(0,0,0,0.7); color:white; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:bold; z-index:2; }
+
+        .galerie { position:relative; width:100%; height:260px; overflow:hidden; background:#ddd; }
+        .galerie img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 0.3s; }
+        .galerie img.active { opacity:1; }
+        .gal-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.4); color:white; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer; z-index:3; display:none; align-items:center; justify-content:center; }
+        .gal-nav.visible { display:flex; }
+        .gal-prev { left:8px; } .gal-next { right:8px; }
+        .gal-dots { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); display:flex; gap:5px; z-index:3; }
+        .gal-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.5); border:none; cursor:pointer; }
+        .gal-dot.active { background:white; }
+
+        .info { padding:15px; }
+        .name { font-size:17px; font-weight:bold; margin:0; }
+        .cat-label { font-size:12px; color:#999; margin:3px 0 6px; }
+        .prix-wrap { display:flex; align-items:center; gap:10px; margin:6px 0 10px; flex-wrap:wrap; }
+        .price { font-size:19px; color:var(--primary); font-weight:bold; margin:0; }
+        .price-barre { font-size:14px; color:#aaa; text-decoration:line-through; margin:0; }
+        .badge-promo { background:#e74c3c; color:white; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:bold; }
+
+        .btn-panier { display:block; width:100%; background:var(--primary); color:white; text-align:center; padding:13px; border:none; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer; transition:filter 0.2s; }
+        .btn-panier:hover { filter:brightness(0.88); }
+        .btn-panier.dans-panier { background:#27ae60; }
+        .btn-panier.rupture { background:#999; cursor:not-allowed; }
+
+        #wa-float { position:fixed; bottom:20px; left:20px; background:var(--whatsapp); color:white; border:none; border-radius:50px; padding:12px 18px; font-size:15px; font-weight:bold; cursor:pointer; box-shadow:0 3px 12px rgba(0,0,0,0.25); z-index:100; }
+        #admin-toggle { position:fixed; bottom:20px; right:20px; background:#333; color:white; border:none; border-radius:50%; width:50px; height:50px; font-size:22px; cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,0.3); z-index:100; }
+
+        .modal { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:200; overflow-y:auto; }
+        .modal.open { display:block; }
+        .modal-box { background:white; max-width:500px; margin:30px auto; border-radius:16px; padding:25px; box-shadow:0 8px 30px rgba(0,0,0,0.3); }
+        .modal-box h2 { margin-top:0; font-size:20px; border-bottom:2px solid #eee; padding-bottom:10px; }
+
+        .panier-vide { text-align:center; color:#999; padding:30px 0; font-size:15px; }
+        .panier-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f0f0f0; }
+        .panier-item img { width:60px; height:60px; object-fit:cover; border-radius:8px; flex-shrink:0; }
+        .panier-item-info { flex:1; }
+        .panier-item-nom { font-weight:bold; font-size:14px; margin:0 0 3px; }
+        .panier-item-prix { color:var(--primary); font-weight:bold; font-size:13px; margin:0; }
+        .panier-qte { display:flex; align-items:center; gap:6px; }
+        .qte-btn { background:#eee; border:none; border-radius:6px; width:28px; height:28px; font-size:16px; cursor:pointer; font-weight:bold; }
+        .qte-val { font-weight:bold; font-size:15px; min-width:20px; text-align:center; }
+        .btn-suppr { background:none; border:none; color:#ccc; font-size:20px; cursor:pointer; padding:0 4px; }
+        .btn-suppr:hover { color:red; }
+        #panier-total { margin-top:15px; background:#f0f4f8; border-radius:10px; padding:14px; display:flex; justify-content:space-between; align-items:center; font-size:17px; font-weight:bold; }
+        #total-valeur { color:var(--primary); font-size:20px; }
+
+        .btn-green { display:block; width:100%; padding:14px; background:var(--whatsapp); color:white; border:none; border-radius:10px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:12px; }
+        .btn-red { display:block; width:100%; padding:11px; background:#fee; color:#c0392b; border:1px solid #f5c6c6; border-radius:10px; font-size:14px; cursor:pointer; margin-top:8px; }
+        .btn-grey { display:block; width:100%; padding:11px; background:#eee; color:#333; border:none; border-radius:10px; font-size:14px; cursor:pointer; margin-top:8px; }
+        .btn-primary { display:block; width:100%; padding:14px; background:var(--primary); color:white; border:none; border-radius:10px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:10px; }
+        .success-msg { display:none; color:white; text-align:center; padding:10px; border-radius:8px; margin-top:10px; font-weight:bold; }
+
+        .admin-section { border:1px solid #eee; border-radius:10px; padding:15px; margin-bottom:15px; background:#fafafa; }
+        .admin-section h3 { margin:0 0 12px; font-size:15px; color:#555; border-bottom:1px solid #eee; padding-bottom:8px; }
+        .admin-section.gold { border-color:#f0c080; background:#fffbf0; }
+        .admin-section.gold h3 { color:#c0781a; }
+        label.lbl { font-size:13px; color:#888; display:block; margin-top:10px; margin-bottom:3px; }
+        input.inp, select.inp { width:100%; padding:8px 10px; border:1px solid #ccc; border-radius:7px; font-size:14px; }
+        input.inp:focus, select.inp:focus { outline:none; border-color:var(--primary); }
+        .admin-article { border:1px solid #ddd; border-radius:10px; padding:15px; margin-bottom:12px; background:white; }
+        .admin-article h4 { margin:0 0 10px; font-size:14px; color:#444; }
+        .img-preview { width:100%; height:120px; object-fit:cover; border-radius:7px; margin-top:6px; background:#eee; display:block; }
+        .toggle-label { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13px; color:#555; cursor:pointer; }
+        input[type="checkbox"] { width:auto !important; }
+        .color-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+        .color-opt { width:32px; height:32px; border-radius:50%; border:3px solid transparent; cursor:pointer; }
+        .color-opt.selected { border-color:#333; }
+
+        #password-modal { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:300; align-items:center; justify-content:center; }
+        #password-modal.open { display:flex; }
+        #password-box { background:white; border-radius:16px; padding:30px 25px; width:90%; max-width:340px; box-shadow:0 8px 30px rgba(0,0,0,0.3); text-align:center; }
+        #password-box h3 { margin:0 0 5px; font-size:20px; }
+        #password-box p { color:#888; font-size:14px; margin:0 0 20px; }
+        #password-input { width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; font-size:18px; text-align:center; letter-spacing:4px; margin-bottom:10px; }
+        #password-input:focus { outline:none; border-color:var(--primary); }
+        #password-error { color:red; font-size:13px; margin-bottom:10px; display:none; }
+        .btn-login { width:100%; padding:13px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-bottom:8px; }
+        .btn-annuler { width:100%; padding:11px; background:#eee; color:#333; border:none; border-radius:8px; font-size:14px; cursor:pointer; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div id="header-left">
+        <img id="boutique-logo" src="" alt="logo">
+        <h2 id="boutique-nom">RTA</h2>
+    </div>
+    <button id="panier-btn" onclick="ouvrirPanier()">🛒 <span id="panier-count">0</span></button>
+</header>
+
+<div id="banniere">🚀 Bienvenue sur RTA — Qualité &amp; Style garantis !</div>
+
+<div class="container">
+    <input type="text" id="search-bar" placeholder="🔍 Rechercher un article..." oninput="filtrerProduits()">
+    <div id="categories-bar"></div>
+    <div id="liste-produits" class="products-grid"></div>
+</div>
+
+<button id="wa-float" onclick="contacterWA()">💬 Contacter</button>
+<button id="admin-toggle">⚙️</button>
+
+<div id="password-modal">
+    <div id="password-box">
+        <h3>🔒 Accès Admin</h3>
+        <p>Entrez votre mot de passe</p>
+        <input type="password" id="password-input" placeholder="••••••••" maxlength="30" onkeydown="if(event.key==='Enter') verifierMdp()">
+        <div id="password-error">❌ Mot de passe incorrect</div>
+        <button class="btn-login" onclick="verifierMdp()">Entrer</button>
+        <button class="btn-annuler" onclick="fermerMdp()">Annuler</button>
+    </div>
+</div>
+
+<div id="panier-panel" class="modal">
+    <div class="modal-box">
+        <h2>🛒 Mon Panier</h2>
+        <div id="panier-contenu"></div>
+        <div id="panier-total" style="display:none"><span>Total</span><span id="total-valeur">0 FCFA</span></div>
+        <button class="btn-green" id="btn-commander-panier" onclick="commanderPanier()" style="display:none">📲 Commander tout sur WhatsApp</button>
+        <button class="btn-red" id="btn-vider" onclick="viderPanier()" style="display:none">🗑 Vider le panier</button>
+        <button class="btn-grey" onclick="fermerPanier()">✖ Continuer mes achats</button>
+    </div>
+</div>
+
+<div id="admin-panel" class="modal">
+    <div class="modal-box">
+        <h2>⚙️ Panneau Admin — RTA</h2>
+        <div class="admin-section gold">
+            <h3>🔑 Changer le mot de passe</h3>
+            <label class="lbl">Nouveau mot de passe</label>
+            <input type="password" class="inp" id="nouveau-mdp" placeholder="Nouveau mot de passe">
+            <label class="lbl">Confirmer</label>
+            <input type="password" class="inp" id="confirmer-mdp" placeholder="Répéter">
+            <button class="btn-primary" style="font-size:14px;padding:10px" onclick="changerMdp()">🔒 Enregistrer</button>
+            <div class="success-msg" id="mdp-msg"></div>
+        </div>
+        <div class="admin-section">
+            <h3>🏪 Ma Boutique</h3>
+            <label class="lbl">Nom de la boutique</label>
+            <input type="text" class="inp" id="admin-nom-boutique">
+            <label class="lbl">Numéro WhatsApp (avec indicatif)</label>
+            <input type="text" class="inp" id="admin-numero">
+            <label class="lbl">URL du logo</label>
+            <input type="text" class="inp" id="admin-logo" oninput="previewLogo()">
+            <img id="logo-preview" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-top:8px;display:none">
+            <label class="lbl">Message bannière</label>
+            <input type="text" class="inp" id="admin-banniere">
+            <label class="lbl">Couleur principale</label>
+            <div class="color-row" id="color-row"></div>
+            <button class="btn-primary" style="font-size:14px;padding:10px;margin-top:12px" onclick="sauvegarderBoutique()">✅ Enregistrer</button>
+            <div class="success-msg" id="boutique-msg">✅ Boutique mise à jour !</div>
+        </div>
+        <div class="admin-section">
+            <h3>🗂 Catégories (séparées par virgules)</h3>
+            <input type="text" class="inp" id="admin-categories">
+            <button class="btn-primary" style="font-size:14px;padding:10px;margin-top:8px" onclick="sauvegarderCategories()">✅ Enregistrer</button>
+            <div class="success-msg" id="cat-msg">✅ Catégories mises à jour !</div>
+        </div>
+        <div class="admin-section">
+            <h3>📦 Articles</h3>
+            <div id="admin-form"></div>
+        </div>
+        <button class="btn-primary" onclick="sauvegarderArticles()">✅ Enregistrer les articles</button>
+        <div class="success-msg" id="saved-msg">✅ Articles enregistrés !</div>
+        <button class="btn-grey" onclick="fermerAdmin()">✖ Fermer</button>
+    </div>
+</div>
+
+<script>
+const MDP_DEFAUT = "12345678";
+const COULEURS = ["#2980b9","#e67e22","#e74c3c","#9b59b6","#27ae60","#16a085","#2c3e50","#f39c12"];
+
+const BOUTIQUE_DEFAUT = {
+    nom: "RTA",
+    numero: "22879400131",
+    logo: "",
+    banniere: "🚀 Bienvenue sur RTA — Qualité & Style garantis !",
+    couleur: "#2980b9",
+    categories: ["Chaussures","Sacs","Montres","Vêtements","Électronique","Accessoires"]
+};
+
+// Images hébergées sur des CDN fiables qui ne bloquent pas
+const PRODUITS_DEFAUT = [
+    {
+        nom:"Sneakers Nike Air", prix:"18 500", prixBarre:"25 000", categorie:"Chaussures",
+        images:[
+            "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1579338559194-a162d19bf842?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Sac à Main Cuir", prix:"22 000", prixBarre:"30 000", categorie:"Sacs",
+        images:[
+            "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Montre Connectée Pro", prix:"35 000", prixBarre:"50 000", categorie:"Montres",
+        images:[
+            "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Veste Homme Tendance", prix:"28 000", prixBarre:"", categorie:"Vêtements",
+        images:[
+            "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Écouteurs Sans Fil", prix:"15 000", prixBarre:"20 000", categorie:"Électronique",
+        images:[
+            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Lunettes de Soleil", prix:"8 500", prixBarre:"12 000", categorie:"Accessoires",
+        images:[
+            "https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Sac à Dos Urban", prix:"19 000", prixBarre:"", categorie:"Sacs",
+        images:[
+            "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1581605405669-fcdf81165afa?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Chaussures Femme Talons", prix:"16 000", prixBarre:"22 000", categorie:"Chaussures",
+        images:[
+            "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1515347619252-60a4bf4fff4f?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Parfum Prestige 100ml", prix:"25 000", prixBarre:"32 000", categorie:"Accessoires",
+        images:[
+            "https://images.unsplash.com/photo-1541643600914-78b084683702?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    },
+    {
+        nom:"Robe Femme Moderne", prix:"14 000", prixBarre:"", categorie:"Vêtements",
+        images:[
+            "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=600&q=80",
+            "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=600&q=80"
+        ],
+        rupture:false, actif:true
+    }
+];
+
+function load(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+
+let MES_PRODUITS = load('rta_produits', PRODUITS_DEFAUT);
+let BOUTIQUE     = load('rta_boutique', BOUTIQUE_DEFAUT);
+let panier = [];
+let catActive = "Tous";
+var galState = {};
+
+function getMdp(){ return localStorage.getItem('rta_mdp')||MDP_DEFAUT; }
+
+function init(){
+    appliquerCouleur(BOUTIQUE.couleur);
+    appliquerBoutique();
+    afficherCategories();
+    afficherProduits();
+}
+
+function appliquerCouleur(c){ document.documentElement.style.setProperty('--primary',c); }
+
+function appliquerBoutique(){
+    document.title=BOUTIQUE.nom;
+    document.getElementById('boutique-nom').textContent=BOUTIQUE.nom;
+    const logo=document.getElementById('boutique-logo');
+    if(BOUTIQUE.logo){ logo.src=BOUTIQUE.logo; logo.classList.add('visible'); }
+    else { logo.classList.remove('visible'); }
+    const ban=document.getElementById('banniere');
+    ban.textContent=BOUTIQUE.banniere||'';
+    ban.style.display=BOUTIQUE.banniere?'block':'none';
+}
+
+function afficherCategories(){
+    const bar=document.getElementById('categories-bar'); bar.innerHTML='';
+    const cats=['Tous',...BOUTIQUE.categories.filter(c=>c!=='Tous')];
+    cats.forEach(function(c){
+        const btn=document.createElement('button');
+        btn.className='cat-btn'+(c===catActive?' active':'');
+        btn.textContent=c;
+        btn.onclick=function(){ catActive=c; document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); filtrerProduits(); };
+        bar.appendChild(btn);
+    });
+}
+
+function safeId(nom){ return 'c_'+nom.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+function afficherProduits(){
+    const container=document.getElementById('liste-produits'); container.innerHTML='';
+    MES_PRODUITS.filter(p=>p.actif).forEach(function(p,index){
+        const id=safeId(p.nom);
+        const imgs=(p.images&&p.images.length)?p.images:['https://via.placeholder.com/600x400?text=RTA'];
+        const multi=imgs.length>1;
+        let galHtml='<div class="galerie" id="gal_'+id+'">';
+        imgs.forEach(function(img,gi){ galHtml+='<img src="'+img+'" class="'+(gi===0?'active':'')+'" loading="lazy" crossorigin="anonymous">'; });
+        if(multi){
+            galHtml+='<button class="gal-nav gal-prev visible" onclick="galNav(\''+id+'\',-1)">‹</button>';
+            galHtml+='<button class="gal-nav gal-next visible" onclick="galNav(\''+id+'\',1)">›</button>';
+            galHtml+='<div class="gal-dots">';
+            imgs.forEach(function(_,gi){ galHtml+='<button class="gal-dot'+(gi===0?' active':'')+'" onclick="galGo(\''+id+'\','+gi+')"></button>'; });
+            galHtml+='</div>';
+        }
+        galHtml+='</div>';
+
+        let prixHtml='<div class="prix-wrap"><p class="price">'+p.prix+' FCFA</p>';
+        if(p.prixBarre){
+            prixHtml+='<p class="price-barre">'+p.prixBarre+' FCFA</p>';
+            const a=prixNum(p.prixBarre),n=prixNum(p.prix);
+            if(a>0&&n>0&&a>n){ prixHtml+='<span class="badge-promo">-'+Math.round((a-n)/a*100)+'%</span>'; }
+        }
+        prixHtml+='</div>';
+
+        const btnClass='btn-panier'+(p.rupture?' rupture':'');
+        const btnTxt=p.rupture?'❌ Rupture de stock':'🛒 Ajouter au panier';
+
+        container.innerHTML+='<div class="card" id="'+id+'" data-nom="'+p.nom+'" data-cat="'+(p.categorie||'')+'">'+
+            (p.rupture?'<div class="badge-rupture">Rupture de stock</div>':'')+
+            galHtml+
+            '<div class="info">'+
+              '<p class="name">'+p.nom+'</p>'+
+              (p.categorie?'<p class="cat-label">📁 '+p.categorie+'</p>':'')+
+              prixHtml+
+              '<button id="btn_'+id+'" class="'+btnClass+'" '+(p.rupture?'disabled':'')+' onclick="ajouterAuPanier('+index+')">'+btnTxt+'</button>'+
+            '</div></div>';
+    });
+    majBoutonsCarte();
+    filtrerProduits();
+}
+
+function galNav(id,dir){
+    if(!galState[id]) galState[id]=0;
+    const gal=document.getElementById('gal_'+id); if(!gal) return;
+    const imgs=gal.querySelectorAll('img'),dots=gal.querySelectorAll('.gal-dot'),n=imgs.length;
+    galState[id]=(galState[id]+dir+n)%n;
+    imgs.forEach(function(img,i){ img.classList.toggle('active',i===galState[id]); });
+    dots.forEach(function(d,i){ d.classList.toggle('active',i===galState[id]); });
+}
+function galGo(id,i){
+    galState[id]=i;
+    const gal=document.getElementById('gal_'+id); if(!gal) return;
+    gal.querySelectorAll('img').forEach(function(img,j){ img.classList.toggle('active',j===i); });
+    gal.querySelectorAll('.gal-dot').forEach(function(d,j){ d.classList.toggle('active',j===i); });
+}
+
+function filtrerProduits(){
+    const q=document.getElementById('search-bar').value.trim().toLowerCase();
+    document.querySelectorAll('.card').forEach(function(card){
+        const nom=(card.dataset.nom||'').toLowerCase(), cat=(card.dataset.cat||'');
+        card.classList.toggle('hidden',!( (!q||nom.includes(q))&&(catActive==='Tous'||cat===catActive) ));
+    });
+}
+
+function prixNum(s){ return parseInt(String(s).replace(/\s/g,'').replace(/[^0-9]/g,''))||0; }
+function majCompteur(){ document.getElementById('panier-count').textContent=panier.reduce(function(s,i){return s+i.qte;},0); }
+
+function ajouterAuPanier(index){
+    const actifs=MES_PRODUITS.filter(p=>p.actif);
+    const p=actifs[index]; if(!p||p.rupture) return;
+    const ex=panier.find(function(i){return i.nom===p.nom;});
+    if(ex) ex.qte++; else panier.push({nom:p.nom,prix:p.prix,image:(p.images&&p.images[0])||'',qte:1});
+    majCompteur(); majBoutonsCarte();
+}
+
+function ajouterParNom(nom){
+    const p=MES_PRODUITS.find(function(x){return x.nom===nom;}); if(!p||p.rupture) return;
+    const ex=panier.find(function(i){return i.nom===nom;});
+    if(ex) ex.qte++; else panier.push({nom:p.nom,prix:p.prix,image:(p.images&&p.images[0])||'',qte:1});
+    majCompteur(); majBoutonsCarte(); afficherContenuPanier();
+}
+
+function retirerDuPanier(nom){
+    const ex=panier.find(function(i){return i.nom===nom;}); if(!ex) return;
+    ex.qte--; if(ex.qte<=0) panier=panier.filter(function(i){return i.nom!==nom;});
+    majCompteur(); majBoutonsCarte(); afficherContenuPanier();
+}
+function supprimerDuPanier(nom){ panier=panier.filter(function(i){return i.nom!==nom;}); majCompteur(); majBoutonsCarte(); afficherContenuPanier(); }
+function viderPanier(){ panier=[]; majCompteur(); majBoutonsCarte(); afficherContenuPanier(); }
+
+function majBoutonsCarte(){
+    MES_PRODUITS.filter(p=>p.actif).forEach(function(p){
+        const btn=document.getElementById('btn_'+safeId(p.nom)); if(!btn||p.rupture) return;
+        const dans=panier.find(function(i){return i.nom===p.nom;});
+        if(dans){ btn.textContent='✅ Dans le panier ('+dans.qte+')'; btn.classList.add('dans-panier'); }
+        else { btn.textContent='🛒 Ajouter au panier'; btn.classList.remove('dans-panier'); }
+    });
+}
+
+function afficherContenuPanier(){
+    const el=document.getElementById('panier-contenu');
+    const totalEl=document.getElementById('panier-total');
+    const cmdBtn=document.getElementById('btn-commander-panier');
+    const viderBtn=document.getElementById('btn-vider');
+    if(!panier.length){
+        el.innerHTML='<div class="panier-vide">🛒 Ton panier est vide.<br>Ajoute des articles !</div>';
+        totalEl.style.display='none'; cmdBtn.style.display='none'; viderBtn.style.display='none'; return;
+    }
+    let html='',total=0;
+    panier.forEach(function(item){
+        const st=prixNum(item.prix)*item.qte; total+=st;
+        const n=encodeURIComponent(item.nom);
+        html+='<div class="panier-item">'+
+            '<img src="'+(item.image||'https://via.placeholder.com/60')+'" loading="lazy">'+
+            '<div class="panier-item-info"><p class="panier-item-nom">'+item.nom+'</p>'+
+            '<p class="panier-item-prix">'+item.prix+' × '+item.qte+' = '+st.toLocaleString('fr-FR')+' FCFA</p></div>'+
+            '<div class="panier-qte">'+
+              '<button class="qte-btn" onclick="retirerDuPanier(decodeURIComponent(\''+n+'\'))">−</button>'+
+              '<span class="qte-val">'+item.qte+'</span>'+
+              '<button class="qte-btn" onclick="ajouterParNom(decodeURIComponent(\''+n+'\'))">+</button>'+
+            '</div>'+
+            '<button class="btn-suppr" onclick="supprimerDuPanier(decodeURIComponent(\''+n+'\'))">✕</button></div>';
+    });
+    el.innerHTML=html;
+    document.getElementById('total-valeur').textContent=total.toLocaleString('fr-FR')+' FCFA';
+    totalEl.style.display='flex'; cmdBtn.style.display='block'; viderBtn.style.display='block';
+}
+
+function ouvrirPanier(){ afficherContenuPanier(); document.getElementById('panier-panel').classList.add('open'); }
+function fermerPanier(){ document.getElementById('panier-panel').classList.remove('open'); }
+
+function commanderPanier(){
+    if(!panier.length) return;
+    let total=0;
+    const lignes=panier.map(function(item){
+        const st=prixNum(item.prix)*item.qte; total+=st;
+        return '📦 *'+item.nom+'* × '+item.qte+' — '+st.toLocaleString('fr-FR')+' FCFA';
+    }).join('\n');
+    const msg='Bonjour RTA ! Je souhaite commander :\n\n'+lignes+'\n\n💰 *Total : '+total.toLocaleString('fr-FR')+' FCFA*\n\nEst-ce disponible ?';
+    window.location.href='https://wa.me/'+BOUTIQUE.numero+'?text='+encodeURIComponent(msg);
+}
+
+function contacterWA(){ window.location.href='https://wa.me/'+BOUTIQUE.numero+'?text='+encodeURIComponent('Bonjour RTA ! J\'ai une question sur vos produits.'); }
+
+document.getElementById('admin-toggle').addEventListener('click',function(){
+    document.getElementById('password-input').value='';
+    document.getElementById('password-error').style.display='none';
+    document.getElementById('password-modal').classList.add('open');
+    setTimeout(function(){document.getElementById('password-input').focus();},100);
+});
+
+function verifierMdp(){
+    if(document.getElementById('password-input').value===getMdp()){
+        document.getElementById('password-modal').classList.remove('open'); ouvrirAdmin();
+    } else {
+        document.getElementById('password-error').style.display='block';
+        document.getElementById('password-input').value='';
+        document.getElementById('password-input').focus();
+    }
+}
+function fermerMdp(){ document.getElementById('password-modal').classList.remove('open'); }
+
+function changerMdp(){
+    const n=document.getElementById('nouveau-mdp').value.trim();
+    const c=document.getElementById('confirmer-mdp').value.trim();
+    const msg=document.getElementById('mdp-msg'); msg.style.display='none';
+    if(!n){ showMsg(msg,'❌ Entrez un mot de passe.','#e74c3c'); return; }
+    if(n!==c){ showMsg(msg,'❌ Mots de passe différents.','#e74c3c'); return; }
+    localStorage.setItem('rta_mdp',n);
+    document.getElementById('nouveau-mdp').value='';
+    document.getElementById('confirmer-mdp').value='';
+    showMsg(msg,'✅ Mot de passe mis à jour !','#25D366');
+}
+
+function showMsg(el,txt,bg){ el.textContent=txt; el.style.background=bg; el.style.display='block'; setTimeout(function(){el.style.display='none';},3000); }
+
+function ouvrirAdmin(){
+    document.getElementById('admin-nom-boutique').value=BOUTIQUE.nom;
+    document.getElementById('admin-numero').value=BOUTIQUE.numero;
+    document.getElementById('admin-logo').value=BOUTIQUE.logo||'';
+    document.getElementById('admin-banniere').value=BOUTIQUE.banniere||'';
+    document.getElementById('admin-categories').value=BOUTIQUE.categories.filter(c=>c!=='Tous').join(', ');
+    previewLogo();
+    const row=document.getElementById('color-row'); row.innerHTML='';
+    COULEURS.forEach(function(c){
+        const d=document.createElement('div'); d.className='color-opt'+(c===BOUTIQUE.couleur?' selected':'');
+        d.style.background=c;
+        d.onclick=function(){ document.querySelectorAll('.color-opt').forEach(x=>x.classList.remove('selected')); d.classList.add('selected'); appliquerCouleur(c); };
+        row.appendChild(d);
+    });
+    const form=document.getElementById('admin-form'); form.innerHTML='';
+    MES_PRODUITS.forEach(function(p,i){
+        const imgs=(p.images&&p.images.length)?p.images:[''];
+        let imgsHtml='';
+        imgs.forEach(function(img,j){
+            imgsHtml+='<label class="lbl">Image '+(j+1)+(j===0?' (principale)':'')+'</label>'+
+                '<input type="text" class="inp img-inp-'+i+'" value="'+(img||'')+'" placeholder="https://i.ibb.co/..." oninput="previewArt('+i+')">';
+        });
+        imgsHtml+='<button type="button" onclick="ajouterChampImage('+i+')" style="margin-top:6px;background:none;border:1px dashed #ccc;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;color:#888">+ Ajouter une photo</button>';
+        imgsHtml+='<img id="art-preview-'+i+'" class="img-preview" src="'+(imgs[0]||'')+'">';
+        const cats=['',...BOUTIQUE.categories.filter(c=>c!=='Tous')];
+        let catOpts=cats.map(function(c){ return '<option value="'+c+'"'+(c===(p.categorie||'')?'selected':'')+'>'+( c||'— Aucune —')+'</option>'; }).join('');
+        form.innerHTML+='<div class="admin-article">'+
+            '<h4>Article '+(i+1)+' — '+p.nom+'</h4>'+
+            '<label class="lbl">Nom</label><input type="text" class="inp" id="nom-'+i+'" value="'+p.nom+'">'+
+            '<label class="lbl">Prix (FCFA)</label><input type="text" class="inp" id="prix-'+i+'" value="'+p.prix+'">'+
+            '<label class="lbl">Ancien prix barré (vide = aucun)</label><input type="text" class="inp" id="prixBarre-'+i+'" value="'+(p.prixBarre||'')+'">'+
+            '<label class="lbl">Catégorie</label><select class="inp" id="cat-'+i+'">'+catOpts+'</select>'+
+            '<div id="imgs-wrap-'+i+'">'+imgsHtml+'</div>'+
+            '<label class="toggle-label"><input type="checkbox" id="rupture-'+i+'" '+(p.rupture?'checked':'')+'>Rupture de stock</label>'+
+            '<label class="toggle-label"><input type="checkbox" id="actif-'+i+'" '+(p.actif?'checked':'')+'>Afficher dans la boutique</label>'+
+            '</div>';
+    });
+    document.getElementById('admin-panel').classList.add('open');
+    ['mdp-msg','boutique-msg','cat-msg','saved-msg'].forEach(function(id){ document.getElementById(id).style.display='none'; });
+}
+
+function ajouterChampImage(i){
+    const wrap=document.getElementById('imgs-wrap-'+i);
+    const n=wrap.querySelectorAll('.img-inp-'+i).length+1;
+    const lbl=document.createElement('label'); lbl.className='lbl'; lbl.textContent='Image '+n;
+    const inp=document.createElement('input'); inp.type='text'; inp.className='inp img-inp-'+i; inp.placeholder='https://i.ibb.co/...';
+    inp.oninput=function(){ previewArt(i); };
+    const btn=wrap.querySelector('button');
+    wrap.insertBefore(lbl,btn); wrap.insertBefore(inp,btn);
+}
+
+function previewArt(i){
+    const inp=document.querySelector('.img-inp-'+i);
+    if(inp) document.getElementById('art-preview-'+i).src=inp.value||'https://via.placeholder.com/400';
+}
+
+function previewLogo(){
+    const url=document.getElementById('admin-logo').value;
+    const img=document.getElementById('logo-preview');
+    if(url){ img.src=url; img.style.display='block'; } else { img.style.display='none'; }
+}
+
+function sauvegarderBoutique(){
+    const sel=document.querySelector('.color-opt.selected');
+    BOUTIQUE.nom=document.getElementById('admin-nom-boutique').value||BOUTIQUE.nom;
+    BOUTIQUE.numero=document.getElementById('admin-numero').value||BOUTIQUE.numero;
+    BOUTIQUE.logo=document.getElementById('admin-logo').value;
+    BOUTIQUE.banniere=document.getElementById('admin-banniere').value;
+    if(sel) BOUTIQUE.couleur=sel.style.background;
+    save('rta_boutique',BOUTIQUE); appliquerBoutique();
+    showMsg(document.getElementById('boutique-msg'),'✅ Boutique mise à jour !','#25D366');
+}
+
+function sauvegarderCategories(){
+    const val=document.getElementById('admin-categories').value;
+    BOUTIQUE.categories=val.split(',').map(function(c){return c.trim();}).filter(Boolean);
+    save('rta_boutique',BOUTIQUE); afficherCategories();
+    showMsg(document.getElementById('cat-msg'),'✅ Catégories mises à jour !','#25D366');
+    ouvrirAdmin();
+}
+
+function sauvegarderArticles(){
+    MES_PRODUITS=MES_PRODUITS.map(function(p,i){
+        const imgs=Array.from(document.querySelectorAll('.img-inp-'+i)).map(function(inp){return inp.value.trim();}).filter(Boolean);
+        return {
+            nom:document.getElementById('nom-'+i).value,
+            prix:document.getElementById('prix-'+i).value,
+            prixBarre:document.getElementById('prixBarre-'+i).value,
+            categorie:document.getElementById('cat-'+i).value,
+            images:imgs.length?imgs:['https://via.placeholder.com/600x400?text=RTA'],
+            rupture:document.getElementById('rupture-'+i).checked,
+            actif:document.getElementById('actif-'+i).checked,
+        };
+    });
+    save('rta_produits',MES_PRODUITS); panier=[]; majCompteur(); afficherProduits();
+    showMsg(document.getElementById('saved-msg'),'✅ Articles enregistrés !','#25D366');
+}
+
+function fermerAdmin(){ document.getElementById('admin-panel').classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>
